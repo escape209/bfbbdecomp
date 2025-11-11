@@ -36,6 +36,8 @@ namespace
         U32 buckets_used;
     };
 
+	U32 create_ptanks(group_data& group, unsigned long count);
+
     static group_data groups[MAX_PGT] = {
         { 4, rpPTANKDFLAGVTX2TEXCOORDS | rpPTANKDFLAGMATRIX | rpPTANKDFLAGCOLOR, NULL, NULL, 0, 0,
           0 },
@@ -151,23 +153,21 @@ namespace
             return NULL;
         }
 
-        const F32 f1 = 1.0f;
-        frame->modelling.at.z = f1;
-        frame->modelling.up.y = f1;
-        frame->modelling.right.x = f1;
+        frame->modelling.right.x =
+        frame->modelling.up.y =
+        frame->modelling.at.z = 1.0f;
 
-        const F32 f0 = 0.0f;
-        frame->modelling.up.x = f0;
-        frame->modelling.right.z = f0;
-        frame->modelling.right.y = f0;
+        frame->modelling.right.y =
+        frame->modelling.right.z =
+        frame->modelling.up.x = 0.0f;
 
-        frame->modelling.at.y = f0;
-        frame->modelling.at.x = f0;
-        frame->modelling.up.z = f0;
+        frame->modelling.up.z =
+        frame->modelling.at.x =
+        frame->modelling.at.y = 0.0f;
 
-        frame->modelling.pos.z = f0;
-        frame->modelling.pos.y = f0;
-        frame->modelling.pos.x = f0;
+        frame->modelling.pos.x =
+        frame->modelling.pos.y =
+        frame->modelling.pos.z = 0.0f;
 
         frame->modelling.flags = frame->modelling.flags | rpPTANKDFLAGCNS2DROTATE |
                                  rpPTANKDFLAGCOLOR | rpPTANKDFLAGPOSITION;
@@ -242,8 +242,28 @@ namespace
 
         return 0;
     }
+} // namespace
 
-    U32 create_ptanks(group_data& group, unsigned long count)
+void xPTankPoolSceneEnter()
+{
+    inited = 1;
+    init_groups();
+
+    group_data* it = groups;
+    group_data* end = groups + MAX_PGT;
+    while (it != end)
+    {
+        double f = it->max_size - 0.f;
+        float scaled = float(f) * 0.25f + 0.5f;
+        create_ptanks(*it, (unsigned long)scaled);
+
+        it++;
+    }
+}
+
+namespace
+{
+	U32 create_ptanks(group_data& group, unsigned long count)
     {
         U32 initial_size = group.size;
         if (initial_size + count > group.max_size)
@@ -271,24 +291,6 @@ namespace
         }
 
         return group.size - initial_size;
-    }
-
-} // namespace
-
-void xPTankPoolSceneEnter()
-{
-    inited = 1;
-    init_groups();
-
-    group_data* it = groups;
-    group_data* end = groups + MAX_PGT;
-    while (it != end)
-    {
-        double f = it->max_size - 0.f;
-        float scaled = float(f) * 0.25f + 0.5f;
-        create_ptanks(*it, (unsigned long)scaled);
-
-        it++;
     }
 }
 
