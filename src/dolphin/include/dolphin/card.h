@@ -172,6 +172,18 @@ s32 CARDWrite(CARDFileInfo* fileInfo, const void* addr, s32 length, s32 offset);
 s32 CARDWriteAsync(CARDFileInfo* fileInfo, const void* addr, s32 length, s32 offset,
                    CARDCallback callback);
 
+#define DATA_SCRAMBLE_R(data) (~(data ^ (data >> 7) ^ (data >> 15) ^ (data >> 23)))
+
+static inline u32 exnor_1st(u32 data, u32 rshift)
+{
+    u32 i = 0;
+    for (; i < rshift; ++i)
+    {
+        data = (data >> 1) | (DATA_SCRAMBLE_R(data) << 30) & 0x40000000;
+    }
+    return data;
+}
+
 #ifdef __cplusplus
 }
 #endif

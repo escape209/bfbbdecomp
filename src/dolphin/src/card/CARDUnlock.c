@@ -194,132 +194,122 @@ static s32 DummyLen(void)
 s32 __CARDUnlock(s32 chan, u8 flashID[12])
 {
     u32 init_val;
-    u32 data = 0;
+	u32 data;
 
-    s32 dummy = 1;
-    s32 rlen = 1;
-    u32 rshift = 1;
+	s32 dummy;
+	s32 rlen;
+	u32 rshift;
 
-    u8 fsts = 0;
-    u32 wk = 1;
-    u32 wk1 = 1;
-    u32 w; // not this
-    u32 i;
-    u32 Ans1 = 0;
-    u32 Ans2 = 0;
-    u32* dp;
-    u8 rbuf[64];
-    u32 para1A = 0;
-    u32 para1B = 0;
-    u32 para2A = 0;
-    u32 para2B = 0;
+	u8 fsts;
+	u32 wk, wk1;
+	u8 rbuf[72];
+	u32 Ans1 = 0;
+	u32 Ans2 = 0;
+	u32* dp;
+	u32 para1A = 0;
+	u32 para1B = 0;
+	u32 para2A = 0;
+	u32 para2B = 0;
 
-    CARDControl* card;
-    DSPTaskInfo* task;
-    DecodeParameters* param;
-    u8* input;
-    u8* output;
+	CARDControl* card;
+	DSPTaskInfo* task;
+	DecodeParameters* param;
+	u8* input;
+	u8* output;
 
-    card = &__CARDBlock[chan];
-    task = &card->task;
-    param = (DecodeParameters*)card->workArea;
-    input = (u8*)((u8*)param + sizeof(DecodeParameters));
-    input = (u8*)OSRoundUp32B(input);
-    output = input + 32;
+	card   = &__CARDBlock[chan];
+	task   = &card->task;
+	param  = (DecodeParameters*)card->workArea;
+	input  = (u8*)((u8*)param + sizeof(DecodeParameters));
+	input  = (u8*)OSRoundUp32B(input);
+	output = input + 32;
 
-    fsts = 0;
-    init_val = GetInitVal();
+	fsts     = 0;
+	init_val = GetInitVal();
 
-    dummy = DummyLen();
-    rlen = dummy;
-    if (ReadArrayUnlock(chan, init_val, rbuf, rlen, 0) < 0)
-    {
-        return CARD_RESULT_NOCARD;
-    }
+	dummy = DummyLen();
+	rlen  = dummy;
 
-    rshift = (u32)(dummy * 8 + 1);
-    wk = data;
-    for (i = 0; i < rshift; i++)
-    {
-        wk = ~(w ^ (w >> 7) ^ (w >> 15) ^ (w >> 23));
-        w = (w >> 1) | ((wk << 30) & 0x40000000);
-    }
+	if (ReadArrayUnlock(chan, init_val, rbuf, rlen, 0) < 0)
+		return CARD_RESULT_NOCARD;
 
-    wk1 = ~(wk ^ (wk >> 7) ^ (wk >> 15) ^ (wk >> 23));
-    card->scramble = (wk | ((wk1 << 31) & 0x80000000));
-    card->scramble = bitrev(card->scramble);
-    dummy = DummyLen();
-    rlen = 20 + dummy;
-    data = 0;
-    if (ReadArrayUnlock(chan, data, rbuf, rlen, 1) < 0)
-    {
-        return CARD_RESULT_NOCARD;
-    }
-    dp = (u32*)rbuf;
-    para1A = *dp++;
-    para1B = *dp++;
-    Ans1 = *dp++;
-    para2A = *dp++;
-    para2B = *dp++;
-    para1A = (para1A ^ card->scramble);
-    rshift = 32;
-    wk = exnor(card->scramble, rshift);
-    wk1 = ~(wk ^ (wk << 7) ^ (wk << 15) ^ (wk << 23));
-    card->scramble = (wk | ((wk1 >> 31) & 0x00000001));
-    para1B = (para1B ^ card->scramble);
-    rshift = 32;
-    wk = exnor(card->scramble, rshift);
-    wk1 = ~(wk ^ (wk << 7) ^ (wk << 15) ^ (wk << 23));
-    card->scramble = (wk | ((wk1 >> 31) & 0x00000001));
-    Ans1 ^= card->scramble;
-    rshift = 32;
-    wk = exnor(card->scramble, rshift);
-    wk1 = ~(wk ^ (wk << 7) ^ (wk << 15) ^ (wk << 23));
-    card->scramble = (wk | ((wk1 >> 31) & 0x00000001));
-    para2A = (para2A ^ card->scramble);
-    rshift = 32;
-    wk = exnor(card->scramble, rshift);
-    wk1 = ~(wk ^ (wk << 7) ^ (wk << 15) ^ (wk << 23));
-    card->scramble = (wk | ((wk1 >> 31) & 0x00000001));
-    para2B = (para2B ^ card->scramble);
-    rshift = (u32)(dummy * 8);
-    wk = exnor(card->scramble, rshift);
-    wk1 = ~(wk ^ (wk << 7) ^ (wk << 15) ^ (wk << 23));
-    card->scramble = (wk | ((wk1 >> 31) & 0x00000001));
-    rshift = 32 + 1;
-    wk = exnor(card->scramble, rshift);
-    wk1 = ~(wk ^ (wk << 7) ^ (wk << 15) ^ (wk << 23));
-    card->scramble = (wk | ((wk1 >> 31) & 0x00000001));
+	rshift         = (u32)(dummy * 8 + 1);
+	wk             = exnor_1st(init_val, rshift);
+	wk1            = ~(wk ^ (wk >> 7) ^ (wk >> 15) ^ (wk >> 23));
+	card->scramble = (wk | ((wk1 << 31) & 0x80000000));
+	card->scramble = bitrev(card->scramble);
+	dummy          = DummyLen();
+	rlen           = 20 + dummy;
+	data           = 0;
 
-    *(u32*)&input[0] = para2A;
-    *(u32*)&input[4] = para2B;
+	if (ReadArrayUnlock(chan, data, rbuf, rlen, 1) < 0)
+		return CARD_RESULT_NOCARD;
 
-    param->inputAddr = input;
-    param->inputLength = 8;
-    param->outputAddr = output;
-    param->aramAddr = 0;
+	dp             = (u32*)rbuf;
+	para1A         = *dp++;
+	para1B         = *dp++;
+	Ans1           = *dp++;
+	para2A         = *dp++;
+	para2B         = *dp++;
+	para1A         = (para1A ^ card->scramble);
+	rshift         = 32;
+	wk             = exnor(card->scramble, rshift);
+	wk1            = ~(wk ^ (wk << 7) ^ (wk << 15) ^ (wk << 23));
+	card->scramble = (wk | ((wk1 >> 31) & 0x00000001));
+	para1B         = (para1B ^ card->scramble);
+	rshift         = 32;
+	wk             = exnor(card->scramble, rshift);
+	wk1            = ~(wk ^ (wk << 7) ^ (wk << 15) ^ (wk << 23));
+	card->scramble = (wk | ((wk1 >> 31) & 0x00000001));
+	Ans1 ^= card->scramble;
+	rshift         = 32;
+	wk             = exnor(card->scramble, rshift);
+	wk1            = ~(wk ^ (wk << 7) ^ (wk << 15) ^ (wk << 23));
+	card->scramble = (wk | ((wk1 >> 31) & 0x00000001));
+	para2A         = (para2A ^ card->scramble);
+	rshift         = 32;
+	wk             = exnor(card->scramble, rshift);
+	wk1            = ~(wk ^ (wk << 7) ^ (wk << 15) ^ (wk << 23));
+	card->scramble = (wk | ((wk1 >> 31) & 0x00000001));
+	para2B         = (para2B ^ card->scramble);
+	rshift         = (u32)(dummy * 8);
+	wk             = exnor(card->scramble, rshift);
+	wk1            = ~(wk ^ (wk << 7) ^ (wk << 15) ^ (wk << 23));
+	card->scramble = (wk | ((wk1 >> 31) & 0x00000001));
+	rshift         = 32 + 1;
+	wk             = exnor(card->scramble, rshift);
+	wk1            = ~(wk ^ (wk << 7) ^ (wk << 15) ^ (wk << 23));
+	card->scramble = (wk | ((wk1 >> 31) & 0x00000001));
 
-    DCFlushRange(input, 8);
-    DCInvalidateRange(output, 4);
-    DCFlushRange(param, sizeof(DecodeParameters));
+	*(u32*)&input[0] = para2A;
+	*(u32*)&input[4] = para2B;
 
-    task->priority = 255;
-    task->iram_mmem_addr = (u16*)OSPhysicalToCached(CardData);
-    task->iram_length = 0x160;
-    task->iram_addr = 0;
-    task->dsp_init_vector = 0x10;
-    task->init_cb = InitCallback;
-    task->res_cb = NULL;
-    task->done_cb = DoneCallback;
-    task->req_cb = NULL;
-    DSPAddTask(task);
+	param->inputAddr   = input;
+	param->inputLength = 8;
+	param->outputAddr  = output;
+	param->aramAddr    = 0;
 
-    dp = (u32*)flashID;
-    *dp++ = para1A;
-    *dp++ = para1B;
-    *dp = Ans1;
+	DCFlushRange(input, 8);
+	DCInvalidateRange(output, 4);
+	DCFlushRange(param, sizeof(DecodeParameters));
 
-    return CARD_RESULT_READY;
+	task->priority        = 255;
+	task->iram_mmem_addr  = (u16*)OSPhysicalToCached(CardData);
+	task->iram_length     = 0x160;
+	task->iram_addr       = 0;
+	task->dsp_init_vector = 0x10;
+	task->init_cb         = InitCallback;
+	task->res_cb          = NULL;
+	task->done_cb         = DoneCallback;
+	task->req_cb          = NULL;
+	DSPAddTask(task);
+
+	dp    = (u32*)flashID;
+	*dp++ = para1A;
+	*dp++ = para1B;
+	*dp   = Ans1;
+
+	return CARD_RESULT_READY;
 }
 
 static void InitCallback(void* _task)
